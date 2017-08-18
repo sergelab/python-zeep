@@ -5,7 +5,7 @@ from lxml import etree
 
 from zeep.exceptions import ValidationError
 from zeep.xsd.const import xsd_ns
-from zeep.xsd.types.any import AnyType
+from zeep.xsd.types.any import AnyObject, AnyType
 
 logger = logging.getLogger(__name__)
 
@@ -78,5 +78,6 @@ class AnySimpleType(AnyType):
             raise ValidationError("Value is required")
 
     def xmlvalue(self, value):
-        raise NotImplementedError(
-            '%s.xmlvalue() not implemented' % self.__class__.__name__)
+        if isinstance(value, AnyObject):
+            return value.xsd_obj.xmlvalue(value.value)
+        return value
