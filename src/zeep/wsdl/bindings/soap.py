@@ -86,7 +86,18 @@ class SoapBinding(Binding):
 
             # Apply WSSE
             if client.wsse:
-                envelope, http_headers = client.wsse.apply(envelope, http_headers)
+                if isinstance(client.wsse, list):
+                    for wsse in client.wsse:
+                        envelope, http_headers = wsse.apply(
+                            envelope, http_headers)
+                else:
+                    envelope, http_headers = client.wsse.apply(
+                        envelope, http_headers)
+
+        # Add extra http headers from the setings object
+        if client.settings.extra_http_headers:
+            http_headers.update(client.settings.extra_http_headers)
+
         return envelope, http_headers
 
     def send(self, client, options, operation, args, kwargs):
@@ -115,7 +126,7 @@ class SoapBinding(Binding):
         operation_obj = self.get(operation)
 
         # If the client wants to return the raw data then let's do that.
-        if client.raw_response:
+        if client.settings.raw_response:
             return response
 
         return self.process_reply(client, operation_obj, response)
@@ -131,7 +142,10 @@ class SoapBinding(Binding):
         :type response: requests.Response
 
         """
-        if response.status_code != 200 and not response.content:
+        if response.status_code in (201, 202) and not response.content:
+            return None
+
+        elif response.status_code != 200 and not response.content:
             raise TransportError(
                 u'Server returned HTTP status %d (no content available)'
                 % response.status_code,
@@ -153,14 +167,11 @@ class SoapBinding(Binding):
             content = response.content
 
         try:
-            doc = parse_xml(
-                content, self.transport,
-                strict=client.wsdl.strict,
-                xml_huge_tree=client.xml_huge_tree)
-        except XMLSyntaxError:
+            doc = parse_xml(content, self.transport, settings=client.settings)
+        except XMLSyntaxError as exc:
             raise TransportError(
-                'Server returned HTTP status %d (%s)'
-                % (response.status_code, response.content),
+                'Server returned response (%s) with invalid XML: %s.\nContent: %r'
+                % (response.status_code, exc, response.content),
                 status_code=response.status_code,
                 content=response.content)
 
@@ -418,7 +429,7 @@ class SoapOperation(Operation):
         else:
             message_class = DocumentMessage
 
-        for node in xmlelement.getchildren():
+        for node in xmlelement:
             tag_name = etree.QName(node.tag).localname
             if tag_name not in ('input', 'output', 'fault'):
                 continue

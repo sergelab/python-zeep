@@ -138,6 +138,11 @@ class DateTime(BuiltinType, AnySimpleType):
         return isodate.isostrf.strftime(value, '%Y-%m-%dT%H:%M:%S%Z')
 
     def pythonvalue(self, value):
+
+        # Determine based on the length of the value if it only contains a date
+        # lazy hack ;-)
+        if len(value) == 10:
+            value += 'T00:00:00'
         return isodate.parse_datetime(value)
 
 
@@ -147,6 +152,9 @@ class Time(BuiltinType, AnySimpleType):
 
     @check_no_collection
     def xmlvalue(self, value):
+        if isinstance(value, six.string_types):
+            return value
+
         if value.microsecond:
             return isodate.isostrf.strftime(value, '%H:%M:%S.%f%Z')
         return isodate.isostrf.strftime(value, '%H:%M:%S%Z')

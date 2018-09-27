@@ -4,12 +4,12 @@ Adds async tornado.gen support to Zeep.
 """
 import logging
 import urllib
-from . import bindings
 
-from tornado import gen, httpclient
 from requests import Response, Session
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
+from tornado import gen, httpclient
 
+from zeep.tornado import bindings
 from zeep.transports import Transport
 from zeep.utils import get_version
 from zeep.wsdl.utils import etree_to_string
@@ -38,6 +38,7 @@ class TornadoAsyncTransport(Transport):
         client = httpclient.HTTPClient()
         kwargs = {
             'method': 'GET',
+            'connect_timeout': self.load_timeout,
             'request_timeout': self.load_timeout
         }
         http_req = httpclient.HTTPRequest(url, **kwargs)
@@ -89,15 +90,16 @@ class TornadoAsyncTransport(Transport):
                 auth_password = self.session.password
                 auth_mode = 'digest'
             else:
-                raise StandardError('Not supported authentication.')
+                raise Exception('Not supported authentication.')
 
         # extracting client cert
         client_cert = None
         client_key = None
+        ca_certs = None
 
         if self.session.cert:
             if type(self.session.cert) is str:
-                client_cert = self.session.cert
+                ca_certs = self.session.cert
             elif type(self.session.cert) is tuple:
                 client_cert = self.session.cert[0]
                 client_key = self.session.cert[1]
@@ -106,12 +108,14 @@ class TornadoAsyncTransport(Transport):
 
         kwargs = {
             'method': method,
+            'connect_timeout': self.operation_timeout,
             'request_timeout': self.operation_timeout,
             'headers': dict(headers, **session_headers),
             'auth_username': auth_username,
             'auth_password': auth_password,
             'auth_mode': auth_mode,
-            'validate_cert': self.session.verify,
+            'validate_cert': bool(self.session.verify),
+            'ca_certs': ca_certs,
             'client_key': client_key,
             'client_cert': client_cert
         }

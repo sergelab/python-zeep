@@ -148,7 +148,7 @@ class Element(Base):
             if (
                 element_tag.namespace and self.qname.namespace and
                 element_tag.namespace != self.qname.namespace and
-                schema.strict
+                schema.settings.strict
             ):
                 break
 
@@ -221,11 +221,11 @@ class Element(Base):
             # Validate bounds
             if len(value) < self.min_occurs:
                 raise exceptions.ValidationError(
-                    "Expected at least %d items (minOccurs check)" % self.min_occurs,
+                    "Expected at least %d items (minOccurs check) %d items found." % (self.min_occurs, len(value)),
                     path=render_path)
             elif self.max_occurs != 'unbounded' and len(value) > self.max_occurs:
                 raise exceptions.ValidationError(
-                    "Expected at most %d items (maxOccurs check)" % self.min_occurs,
+                    "Expected at most %d items (maxOccurs check) %d items found." % (self.max_occurs, len(value)),
                     path=render_path)
 
             for val in value:

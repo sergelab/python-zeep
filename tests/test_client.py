@@ -43,6 +43,20 @@ def test_service_proxy_non_existing():
         assert client_obj.service.NonExisting
 
 
+def test_service_proxy_dir_operations():
+    client_obj = client.Client('tests/wsdl_files/soap.wsdl')
+    operations = [op for op in dir(client_obj.service) if not op.startswith('_')]
+    assert set(operations) == set(['GetLastTradePrice', 'GetLastTradePriceNoOutput'])
+
+
+def test_operation_proxy_doc():
+    client_obj = client.Client('tests/wsdl_files/soap.wsdl')
+    assert (client_obj.service.GetLastTradePrice.__doc__
+            == 'GetLastTradePrice(tickerSymbol: xsd:string, '
+                                 'account: ns0:account, '
+                                 'country: ns0:country) -> price: xsd:float')
+
+
 def test_open_from_file_object():
     with open('tests/wsdl_files/soap_transport_err.wsdl', 'rb') as fh:
         client_obj = client.Client(fh)
@@ -104,6 +118,12 @@ def test_create_service():
         assert m.request_history[0].headers['User-Agent'].startswith('Zeep/')
         assert m.request_history[0].body.startswith(
             b"<?xml version='1.0' encoding='utf-8'?>")
+
+def test_create_message():
+    client_obj = client.Client('tests/wsdl_files/soap.wsdl')
+    data = client_obj.create_message(
+        client_obj.service, 'GetLastTradePrice', tickerSymbol="ZEEP")
+    assert data
 
 
 def test_load_wsdl_with_file_prefix():
@@ -170,33 +190,6 @@ def test_call_method_fault():
             obj.service.GetLastTradePrice(tickerSymbol='foobar')
 
 
-def test_set_context_options_timeout():
-    obj = client.Client('tests/wsdl_files/soap.wsdl')
-
-    assert obj.transport.operation_timeout is None
-    with obj.options(timeout=120):
-        assert obj.transport.operation_timeout == 120
-
-        with obj.options(timeout=90):
-            assert obj.transport.operation_timeout == 90
-        assert obj.transport.operation_timeout == 120
-    assert obj.transport.operation_timeout is None
-
-
-def test_set_context_options_raw_response():
-    obj = client.Client('tests/wsdl_files/soap.wsdl')
-
-    assert obj.raw_response is False
-    with obj.options(raw_response=True):
-        assert obj.raw_response is True
-
-        with obj.options():
-            # Check that raw_response is not changed by default value
-            assert obj.raw_response is True
-    # Check that the original value returned
-    assert obj.raw_response is False
-
-
 @pytest.mark.requests
 def test_default_soap_headers():
     header = xsd.ComplexType(
@@ -231,7 +224,7 @@ def test_default_soap_headers():
         doc = load_xml(m.request_history[0].body)
         header = doc.find('{http://schemas.xmlsoap.org/soap/envelope/}Header')
         assert header is not None
-        assert len(header.getchildren()) == 2
+        assert len(list(header)) == 2
 
 
 @pytest.mark.requests
@@ -276,4 +269,5 @@ def test_default_soap_headers_extra():
         doc = load_xml(m.request_history[0].body)
         header = doc.find('{http://schemas.xmlsoap.org/soap/envelope/}Header')
         assert header is not None
-        assert len(header.getchildren()) == 4
+        assert len(list(header)) == 4
+

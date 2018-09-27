@@ -72,6 +72,24 @@ def test_element_simple_type():
     assert_nodes_equal(expected, node)
 
 
+def test_complex_type():
+    custom_type = xsd.ComplexType(
+        xsd.Sequence([
+            xsd.Element(
+                etree.QName('http://tests.python-zeep.org/', 'username'),
+                xsd.String()),
+            xsd.Element(
+                etree.QName('http://tests.python-zeep.org/', 'password'),
+                xsd.String()),
+        ])
+    )
+    obj = custom_type('user', 'pass')
+    assert {key: obj[key] for key in obj} == {
+        'username': 'user',
+        'password': 'pass'
+    }
+
+
 def test_nil_elements():
     custom_type = xsd.Element(
         '{http://tests.python-zeep.org/}container',
@@ -147,8 +165,6 @@ def test_invalid_kwarg_simple_type():
 
     with pytest.raises(TypeError):
         elm(something='is-wrong')
-
-
 
 
 def test_any():
@@ -529,7 +545,7 @@ def test_element_attribute_name_conflict():
     node = render_node(custom_type, obj)
     assert_nodes_equal(expected, node)
 
-    obj = custom_type.parse(node.getchildren()[0], None)
+    obj = custom_type.parse(list(node)[0], None)
     assert obj.item == 'foo'
     assert obj.foo == 'x'
     assert obj.attr__item == 'bar'

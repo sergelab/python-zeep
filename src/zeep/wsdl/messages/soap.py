@@ -11,6 +11,7 @@ from lxml.builder import ElementMaker
 
 from zeep import exceptions, xsd
 from zeep.utils import as_qname
+from zeep.xsd.context import XmlParserContext
 from zeep.wsdl.messages.base import ConcreteMessage, SerializedMessage
 from zeep.wsdl.messages.multiref import process_multiref
 
@@ -132,7 +133,10 @@ class SoapMessage(ConcreteMessage):
                     return None
             return self.envelope.type.signature(schema=self.wsdl.types, standalone=False)
 
-        parts = [self.body.type.signature(schema=self.wsdl.types, standalone=False)]
+        if self.body:
+            parts = [self.body.type.signature(schema=self.wsdl.types, standalone=False)]
+        else:
+            parts = []
         if self.header.type._element:
             parts.append('_soapheaders={%s}' % self.header.type.signature(
                 schema=self.wsdl.types, standalone=False))
@@ -342,7 +346,8 @@ class SoapMessage(ConcreteMessage):
         if not self.header or xmlelement is None:
             return {}
 
-        result = self.header.parse(xmlelement, self.wsdl.types)
+        context = XmlParserContext(settings=self.wsdl.settings)
+        result = self.header.parse(xmlelement, self.wsdl.types, context=context)
         if result is not None:
             return {'header': result}
         return {}
@@ -359,7 +364,7 @@ class SoapMessage(ConcreteMessage):
             part_name = item['part']
 
             message = definitions.get('messages', message_name)
-            if message == self.abstract:
+            if message == self.abstract and part_name in parts:
                 del parts[part_name]
 
             part = message.parts[part_name]
@@ -397,15 +402,15 @@ class DocumentMessage(SoapMessage):
         self._is_body_wrapped = False
 
     def _deserialize_body(self, xmlelement):
-        if self._is_body_wrapped:
-            result = self.body.parse(xmlelement, self.wsdl.types)
-        else:
-            # For now we assume that the body only has one child since only
-            # one part is specified in the wsdl. This should be handled way
-            # better
-            # XXX
-            xmlelement = xmlelement.getchildren()[0]
-            result = self.body.parse(xmlelement, self.wsdl.types)
+
+        if not self._is_body_wrapped:
+            # TODO: For now we assume that the body only has one child since
+            # only one part is specified in the wsdl. This should be handled
+            # way better
+            xmlelement = list(xmlelement)[0]
+
+        context = XmlParserContext(settings=self.wsdl.settings)
+        result = self.body.parse(xmlelement, self.wsdl.types, context=context)
         return {'body': result}
 
     def _resolve_body(self, info, definitions, parts):
@@ -496,8 +501,10 @@ class RpcMessage(SoapMessage):
         """
         process_multiref(body_element)
 
-        response_element = body_element.getchildren()[0]
+        response_element = list(body_element)[0]
         if self.body:
-            result = self.body.parse(response_element, self.wsdl.types)
+            context = XmlParserContext(self.wsdl.settings)
+            result = self.body.parse(
+                response_element, self.wsdl.types, context=context)
             return {'body': result}
         return {'body': None}

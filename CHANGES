@@ -1,10 +1,48 @@
-2.4.0 (unreleased)
+3.1.0 (2018-07-28)
+------------------
+ - Fix SSL issue on with `TornadoAsyncTransport` (#792)
+ - Fix passing strict keyword in XML loader (#787)
+ - Update documentation
+
+
+3.0.0 (2018-06-16)
+------------------
+This is a major release, and contains a number of backwards incompatible
+changes to the API.
+
+ - Refactor the settings logic in Zeep. All settings are now configured using
+   the zeep.settings.Settings() class.
+ - Allow control of defusedxml settings via zeep.Settings (see #567, #391)
+ - Add ability to set specific http headers for each call (#758)
+ - Skip the xsd:annotation element in the all:element (#737)
+ - Add Settings.force_https as option so that it can be disabled (#605)
+ - Strip spaces from QName's when parsing xsd's (#719)
+ - Fix DateTime parsing when only a date is returned (#672)
+ - Fix handling of nested optional any elements (#556)
+ - Check if part exists before trying to delete it (#659)
+
+
+2.5.0 (2018-01-06)
+------------------
+ - Fix AnyType value rendering by guessing the xsd type for the value (#552)
+ - Fix AnySimpleType.xmlvalue() not implemented exception (#644)
+ - Add __dir__ method to value objects returned by Zeep
+ - Don't require content for 201 and 202 status codes (#613)
+ - Fix wheel package by cleaning the build directory correctly (#634)
+ - Handle Nil values on complexType with SimpleContent elements (#604)
+ - Add Client.namespaces method to list all namespaces available
+ - Improve support for auto-completion (#537)
+
+
+2.4.0 (2017-08-26)
 ------------------
  - Add support for tornado async transport via gen.coroutine (#530, Kateryna Burda)
  - Check if soap:address is defined in the service port instead of raising an
    exception (#527)
  - Update packaging (stop using find_packages()) (#529)
  - Properly handle None values when rendering complex types (#526)
+ - Fix generating signature for empty wsdl messages (#542)
+ - Support passing strings to xsd:Time objects (#540)
 
 
 2.3.0 (2017-08-06)

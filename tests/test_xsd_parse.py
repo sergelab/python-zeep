@@ -1,9 +1,10 @@
+import pytest
 import datetime
 
 from lxml import etree
 
 from tests.utils import load_xml
-from zeep import xsd
+from zeep import exceptions,xsd
 from zeep.xsd.schema import Schema
 
 
@@ -198,7 +199,6 @@ def test_sequence_parse_anytype_regression_17():
     assert result.getCustomFieldReturn.value.content == 'Test Solution'
 
 
-
 def test_nested_complex_type():
     custom_type = xsd.Element(
         etree.QName('http://tests.python-zeep.org/', 'authentication'),
@@ -324,13 +324,13 @@ def test_nested_choice_optional():
                     etree.QName('http://tests.python-zeep.org/', 'item_1'),
                     xsd.String()),
                 xsd.Choice([
-                        xsd.Element(
-                            '{http://tests.python-zeep.org/}item_2',
-                            xsd.String()),
-                        xsd.Element(
-                            '{http://tests.python-zeep.org/}item_3',
-                            xsd.String()),
-                    ],
+                    xsd.Element(
+                        '{http://tests.python-zeep.org/}item_2',
+                        xsd.String()),
+                    xsd.Element(
+                        '{http://tests.python-zeep.org/}item_3',
+                        xsd.String()),
+                ],
                     min_occurs=0, max_occurs=1
                 ),
             ])
@@ -463,3 +463,51 @@ def test_xsd_missing_localname():
     """))
 
     schema.get_element('{http://tests.python-zeep.org/}container')
+
+def test_xsd_choice_with_references():
+    schema = xsd.Schema(load_xml("""
+            <xsd:schema
+                xmlns:zeep="http://tests.python-zeep.org/"
+                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                targetNamespace="http://tests.python-zeep.org/">
+
+              <xsd:element name="el1" type="xsd:string"/>
+              <xsd:element name="el2" type="xsd:string"/>
+
+              <xsd:element name="container">
+        		<xsd:complexType>
+        			<xsd:sequence>
+        				<xsd:choice>
+        					<xsd:element ref="zeep:el1"/>
+        					<xsd:element ref="zeep:el2"/>
+        					<xsd:element name="el3" type="xsd:string"/>
+        				</xsd:choice>
+        			</xsd:sequence>
+        		</xsd:complexType>
+              </xsd:element>
+
+             </xsd:schema>
+        """))
+    schema.set_ns_prefix('tns', 'http://tests.python-zeep.org/')
+
+    xml = load_xml(b"""
+        <ns0:container xmlns:ns0="http://tests.python-zeep.org/">
+          <ns0:BAD_ELEMENT>BAD VALUE</ns0:BAD_ELEMENT>
+        </ns0:container>
+    """)
+
+    elm = schema.get_element('{http://tests.python-zeep.org/}container')
+
+    with pytest.raises(exceptions.XMLParseError) as exc:
+        result = elm.parse(xml, schema)
+    assert 'BAD_ELEMENT' in str(exc)
+
+    xml = load_xml(b"""
+        <ns0:container xmlns:ns0="http://tests.python-zeep.org/">
+          <ns0:el2>value2</ns0:el2>
+        </ns0:container>
+    """)
+
+    result = elm.parse(xml, schema)
+
+    assert result.el2 == 'value2'
